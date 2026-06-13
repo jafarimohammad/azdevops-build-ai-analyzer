@@ -9,6 +9,12 @@ SDK.init({ loaded: false, applyTheme: true });
 // (same origin), so no external backend is needed.
 const ATTACHMENT_TYPE = 'ai-build-analyzer';
 
+// Use widely-supported REST API versions so the tab works on older on-prem
+// Azure DevOps Server too (7.1 is rejected by Server 2020/2022). The build
+// attachments endpoint is a preview API, hence the -preview suffix.
+const API_VERSION = '6.0';
+const ATTACHMENTS_API_VERSION = '6.0-preview.2';
+
 const els = {};
 
 function cacheEls() {
@@ -125,14 +131,14 @@ function getAzdoContext() {
 // --- Build data ----------------------------------------------------------
 
 async function fetchBuildDetails(ctx, buildId) {
-  const resp = await azdoFetch(`${ctx.orgUrl}/${ctx.project}/_apis/build/builds/${buildId}?api-version=7.1`);
+  const resp = await azdoFetch(`${ctx.orgUrl}/${ctx.project}/_apis/build/builds/${buildId}?api-version=${API_VERSION}`);
   if (!resp.ok) throw new Error(`Could not read build details (HTTP ${resp.status}).`);
   return resp.json();
 }
 
 /** Fetch the analysis attachment produced by the AIBuildAnalyzer task; null when absent. */
 async function fetchAnalysisAttachment(ctx, buildId) {
-  const listUrl = `${ctx.orgUrl}/${ctx.project}/_apis/build/builds/${buildId}/attachments/${ATTACHMENT_TYPE}?api-version=7.1`;
+  const listUrl = `${ctx.orgUrl}/${ctx.project}/_apis/build/builds/${buildId}/attachments/${ATTACHMENT_TYPE}?api-version=${ATTACHMENTS_API_VERSION}`;
   const listResp = await azdoFetch(listUrl);
   if (!listResp.ok) {
     if (listResp.status === 404) return null;

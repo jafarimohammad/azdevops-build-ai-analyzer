@@ -9,7 +9,7 @@
   "author": "AI Build Analyzer",
   "version": {
     "Major": 2,
-    "Minor": 5,
+    "Minor": 8,
     "Patch": 0
   },
   "instanceNameFormat": "AI Build Analyzer",
@@ -65,6 +65,14 @@
       "label": "Max log files to read",
       "defaultValue": "15",
       "required": false
+    },
+    {
+      "name": "apiVersion",
+      "type": "string",
+      "label": "Azure DevOps REST API version",
+      "defaultValue": "6.0",
+      "required": false,
+      "helpMarkDown": "Match your server: Azure DevOps Services and Server 2022.1+ support 7.1; Server 2022 uses 7.0; Server 2020 uses 6.0; Server 2019 uses 5.0. Lower this if you get HTTP 400 reading logs."
     }
   ]
 }

@@ -266,10 +266,11 @@ function azdo(urlStr, token, insecure) {
   return request(urlStr, { headers: { Authorization: 'Bearer ' + token }, insecure: insecure, timeout: 30000 });
 }
 
-function fetchFailureLogs(baseUrl, token, insecure, maxLogs) {
+function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
   var failedTasks = [];
   var logIds = [];
-  return azdo(baseUrl + '/timeline?api-version=7.1', token, insecure)
+  var v = '?api-version=' + apiVersion;
+  return azdo(baseUrl + '/timeline' + v, token, insecure)
     .then(function (resp) {
       if (resp.status === 200) {
         var records = (JSON.parse(resp.body).records) || [];
@@ -279,10 +280,14 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs) {
           if (r.type === 'Task' && r.name) failedTasks.push(r.name);
           if (r.log && r.log.id !== undefined && r.log.id !== null) logIds.push(r.log.id);
         }
+      } else {
+        console.log('##[warning]Could not read build timeline (HTTP ' + resp.status + '): ' + String(resp.body).slice(0, 200));
       }
       if (logIds.length > 0) return null;
-      return azdo(baseUrl + '/logs?api-version=7.1', token, insecure).then(function (listResp) {
-        if (listResp.status !== 200) throw new Error('Could not list build logs (HTTP ' + listResp.status + ')');
+      return azdo(baseUrl + '/logs' + v, token, insecure).then(function (listResp) {
+        if (listResp.status !== 200) {
+          throw new Error('Could not list build logs (HTTP ' + listResp.status + ' at api-version ' + apiVersion + '): ' + String(listResp.body).slice(0, 200));
+        }
         var value = JSON.parse(listResp.body).value || [];
         logIds = value.map(function (l) { return l.id; });
         return null;
@@ -294,7 +299,7 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs) {
       var chain = Promise.resolve();
       unique.forEach(function (id) {
         chain = chain.then(function () {
-          return azdo(baseUrl + '/logs/' + id + '?api-version=7.1', token, insecure).then(function (r) {
+          return azdo(baseUrl + '/logs/' + id + v, token, insecure).then(function (r) {
             if (r.status === 200) combined += '\n\n===== LOG ' + id + ' =====\n' + r.body;
           }).catch(function (e) {
             console.log('##[warning]Log ' + id + ' fetch failed: ' + e.message);
@@ -342,6 +347,7 @@ function main() {
     timeout: parseInt(getInput('timeoutMs', '60000'), 10) || 60000
   };
   var maxLogs = parseInt(getInput('maxLogs', '15'), 10) || 15;
+  var apiVersion = getInput('apiVersion', '6.0');
   var baseUrl = collectionUri.replace(/\/+$/, '') + '/' + encodeURIComponent(project) + '/_apis/build/builds/' + buildId;
 
   var meta = {
@@ -351,8 +357,8 @@ function main() {
     failedTasks: []
   };
 
-  console.log('Reading failed-task logs for build ' + buildId + '...');
-  return fetchFailureLogs(baseUrl, token, cfg.insecure, maxLogs)
+  console.log('Reading failed-task logs for build ' + buildId + ' (api-version ' + apiVersion + ')...');
+  return fetchFailureLogs(baseUrl, token, cfg.insecure, maxLogs, apiVersion)
     .then(function (logs) {
       meta.failedTasks = logs.failedTasks;
       var cleaned = sanitize(logs.rawLogs, 120000);

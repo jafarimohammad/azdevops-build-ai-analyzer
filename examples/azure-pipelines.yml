@@ -25,3 +25,4 @@ steps:
       # llmApiKey: $(LLM_API_KEY)         # secret variable, only if required
       # insecureTls: true                 # only for self-signed HTTPS LLMs
       # timeoutMs: '120000'               # raise for slow local models
+      # apiVersion: '6.0'                 # lower if on-prem Server returns HTTP 400 (2020=6.0, 2019=5.0)
