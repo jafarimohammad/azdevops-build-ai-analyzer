@@ -9,7 +9,7 @@
   "author": "AI Build Analyzer",
   "version": {
     "Major": 2,
-    "Minor": 14,
+    "Minor": 15,
     "Patch": 0
   },
   "instanceNameFormat": "AI Build Analyzer",
@@ -63,7 +63,7 @@
       "name": "maxLogs",
       "type": "string",
       "label": "Max log files to read",
-      "defaultValue": "15",
+      "defaultValue": "25",
       "required": false
     },
     {

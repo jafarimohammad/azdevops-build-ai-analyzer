@@ -308,13 +308,21 @@ function azdo(urlStr, token, insecure) {
   return request(urlStr, { headers: { Authorization: 'Bearer ' + token }, insecure: insecure, timeout: 30000 });
 }
 
+function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
 function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
   var failedTasks = [];
   var failed = []; // { logId, name }
+  var usedFallback = false;
   var v = '?api-version=' + apiVersion;
-  return azdo(baseUrl + '/timeline' + v, token, insecure)
-    .then(function (resp) {
+
+  // The analyzer runs right after the step failed, so the timeline may not have
+  // flushed the failed record yet. Retry a few times before falling back.
+  function tryTimeline(attemptsLeft) {
+    return azdo(baseUrl + '/timeline' + v, token, insecure).then(function (resp) {
       if (resp.status === 200) {
+        failed = [];
+        failedTasks = [];
         var records = (JSON.parse(resp.body).records) || [];
         for (var i = 0; i < records.length; i++) {
           var r = records[i];
@@ -331,13 +339,30 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
       } else {
         console.log('##[warning]Could not read build timeline (HTTP ' + resp.status + '): ' + String(resp.body).slice(0, 200));
       }
+      if (failed.length === 0 && attemptsLeft > 0) {
+        console.log('Timeline has no failed task with a log yet; retrying in 3s...');
+        return delay(3000).then(function () { return tryTimeline(attemptsLeft - 1); });
+      }
+      return null;
+    });
+  }
+
+  return tryTimeline(2)
+    .then(function () {
       if (failed.length > 0) return null;
       return azdo(baseUrl + '/logs' + v, token, insecure).then(function (listResp) {
         if (listResp.status !== 200) {
           throw new Error('Could not list build logs (HTTP ' + listResp.status + ' at api-version ' + apiVersion + '): ' + String(listResp.body).slice(0, 200));
         }
         var value = JSON.parse(listResp.body).value || [];
-        failed = value.map(function (l) { return { logId: l.id, name: 'log ' + l.id }; });
+        // No failed task from the timeline -> fall back to the whole log list.
+        // Failures are almost always in late steps, and the list also contains
+        // job/phase logs, so take the MOST RECENT logs first (highest id) rather
+        // than the first N — otherwise the failing late step gets cut off.
+        failed = value
+          .map(function (l) { return { logId: l.id, name: 'log ' + l.id }; })
+          .sort(function (a, b) { return b.logId - a.logId; });
+        usedFallback = true;
         return null;
       });
     })
@@ -345,18 +370,23 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
       var seen = {};
       var unique = failed.filter(function (f) { return seen[f.logId] ? false : (seen[f.logId] = true); }).slice(0, maxLogs);
       var combined = '';
+      var fetched = 0;
       var chain = Promise.resolve();
       unique.forEach(function (f) {
         chain = chain.then(function () {
           return azdo(baseUrl + '/logs/' + f.logId + v, token, insecure).then(function (r) {
             // Numbered so the line numbers match the Azure DevOps log viewer for this step.
-            if (r.status === 200) combined += '\n\n===== ' + f.name + ' (log ' + f.logId + ') =====\n' + cleanAndNumber(r.body);
+            if (r.status === 200) { combined += '\n\n===== ' + f.name + ' (log ' + f.logId + ') =====\n' + cleanAndNumber(r.body); fetched++; }
+            else console.log('##[warning]Log ' + f.logId + ' returned HTTP ' + r.status + '.');
           }).catch(function (e) {
             console.log('##[warning]Log ' + f.logId + ' fetch failed: ' + e.message);
           });
         });
       });
-      return chain.then(function () { return { rawLogs: combined, failedTasks: failedTasks }; });
+      return chain.then(function () {
+        console.log('Fetched ' + fetched + '/' + unique.length + ' log(s)' + (usedFallback ? ' (full list)' : ' (failed tasks)') + ', ' + combined.length + ' chars.');
+        return { rawLogs: combined, failedTasks: failedTasks };
+      });
     });
 }
 
@@ -415,7 +445,7 @@ function main() {
     insecure: String(getInput('insecureTls', 'false')).toLowerCase() === 'true',
     timeout: parseInt(getInput('timeoutMs', '60000'), 10) || 60000
   };
-  var maxLogs = parseInt(getInput('maxLogs', '15'), 10) || 15;
+  var maxLogs = parseInt(getInput('maxLogs', '25'), 10) || 25;
   var apiVersion = getInput('apiVersion', '6.0');
   var baseUrl = collectionUri.replace(/\/+$/, '') + '/' + encodeURIComponent(project) + '/_apis/build/builds/' + buildId;
 
