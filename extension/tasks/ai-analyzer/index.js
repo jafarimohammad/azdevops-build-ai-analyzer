@@ -239,7 +239,7 @@ function toArray(v) {
   return v ? [String(v)] : [];
 }
 
-function analyzeWithLlm(important, meta, cfg) {
+function analyzeWithLlm(important, meta, cfg, hint) {
   var userPrompt = [
     'Analyze this Azure DevOps build failure and respond with JSON only.',
     'JSON schema: {"summary": string, "rootCause": string, "errors": string[], "suggestedFixes": string[], "confidence": number}',
@@ -258,6 +258,7 @@ function analyzeWithLlm(important, meta, cfg) {
     '',
     'Build: ' + (meta.definition || 'unknown') + ' #' + (meta.buildNumber || '?') + ' on ' + (meta.sourceBranch || 'unknown branch') + '.',
     meta.failedTasks && meta.failedTasks.length ? 'Failed tasks: ' + meta.failedTasks.join(', ') + '.' : '',
+    hint ? 'A rule-based pre-check suggests the likely cause is: "' + hint + '". Treat it as a hint, but verify it against the log and override it if the log clearly shows otherwise.' : '',
     '',
     'Relevant log sections:',
     '"""',
@@ -279,7 +280,7 @@ function analyzeWithLlm(important, meta, cfg) {
         { role: 'system', content: 'You are a senior CI/CD engineer who diagnoses Azure DevOps pipeline failures. You reply with a single JSON object and nothing else.' },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.1,
+      temperature: 0,
       max_tokens: 1500
     })
   }).then(function (resp) {
@@ -361,6 +362,25 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
 
 // -------------------------------------------------------------------- main ---
 
+// Combine the LLM result with the deterministic heuristic baseline.
+function mergeResult(result, heur) {
+  if (!result) return heur;
+  // Quoted error lines come from the log deterministically (with line numbers),
+  // not from the LLM — so the user can always see and verify the real errors.
+  if (heur.errors && heur.errors.length) result.errors = heur.errors;
+  // A confident rule beats an unsure LLM: if the model is shaky but a known
+  // failure pattern matched, prefer the rule's explanation.
+  if (result.source === 'llm' && (result.confidence || 0) < 0.5 && heur.success && heur.rootCause) {
+    console.log('LLM confidence low (' + result.confidence + '); using the rule-based diagnosis instead.');
+    result.summary = heur.summary;
+    result.rootCause = heur.rootCause;
+    result.suggestedFixes = heur.suggestedFixes;
+    result.confidence = Math.max(result.confidence || 0, heur.confidence || 0);
+    result.source = 'heuristics';
+  }
+  return result;
+}
+
 function attachResult(result) {
   var dir = process.env.AGENT_TEMPDIRECTORY || os.tmpdir();
   var file = path.join(dir, 'ai-build-analysis.json');
@@ -415,11 +435,21 @@ function main() {
         ? logs.rawLogs.slice(0, 60000) + '\n...[truncated]...\n' + logs.rawLogs.slice(-60000)
         : logs.rawLogs;
       var important = extractImportant(cleaned) || cleaned.slice(-12000);
+
+      // Deterministic baseline, always computed: it grounds the LLM and is the
+      // source of truth for the quoted error lines.
+      var heur = runHeuristics(important);
+      console.log('Failed task(s): ' + (meta.failedTasks.join(', ') || 'n/a') +
+        ' | extracted ' + heur.errors.length + ' key error line(s)' +
+        (heur.rootCause ? ' | rule pre-check: ' + heur.rootCause : '') + '.');
+
       console.log('Analyzing with LLM at ' + cfg.url + ' (model ' + cfg.model + ')...');
-      return analyzeWithLlm(important, meta, cfg).catch(function (e) {
-        console.log('##[warning]LLM analysis failed (' + e.message + '); using offline heuristics.');
-        return runHeuristics(important);
-      });
+      return analyzeWithLlm(important, meta, cfg, heur.rootCause)
+        .catch(function (e) {
+          console.log('##[warning]LLM analysis failed (' + e.message + '); using offline heuristics.');
+          return heur;
+        })
+        .then(function (result) { return mergeResult(result, heur); });
     })
     .then(function (result) {
       attachResult(result);
@@ -436,4 +466,4 @@ if (require.main === module) {
 }
 
 // Exported for unit tests (see test/).
-module.exports = { sanitize: sanitize, denoise: denoise, cleanAndNumber: cleanAndNumber, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
+module.exports = { sanitize: sanitize, denoise: denoise, cleanAndNumber: cleanAndNumber, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics, mergeResult: mergeResult };
