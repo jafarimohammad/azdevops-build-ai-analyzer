@@ -1,0 +1,28 @@
+{
+  "name": "azdevops-build-ai-analyzer",
+  "version": "2.5.0",
+  "description": "Azure DevOps extension that analyzes failed pipeline runs with your own OpenAI-compatible LLM.",
+  "license": "MIT",
+  "author": "Mohammad Jafari",
+  "homepage": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer.git"
+  },
+  "keywords": [
+    "azure-devops",
+    "azure-pipelines",
+    "extension",
+    "ai",
+    "llm",
+    "build",
+    "ci-cd"
+  ],
+  "scripts": {
+    "package": "tfx extension create --manifest-globs extension/vss-extension.json --output-path .",
+    "test": "node test/run-task-test.js"
+  },
+  "devDependencies": {
+    "tfx-cli": "^0.17.0"
+  }
+}

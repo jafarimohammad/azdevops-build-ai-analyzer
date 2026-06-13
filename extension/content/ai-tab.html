@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>AI Analyzer</title>
+</head>
+<body>
+    <main id="ai-tab-container">
+        <header class="header">
+            <div>
+                <h1>🤖 <span class="accent">AI</span> Build Analyzer</h1>
+                <p>Automatic analysis of Azure Pipeline failures with your own LLM</p>
+            </div>
+            <button id="analyze-button" type="button">Reload</button>
+        </header>
+
+        <section id="loading" class="status status-info hidden">
+            <div class="loading-row">
+                <span class="spinner"></span>
+                <p>Loading the analysis…</p>
+            </div>
+            <p id="loading-detail" class="muted"></p>
+        </section>
+
+        <section id="empty" class="status status-info hidden">
+            <h2>📭 No analysis recorded for this run</h2>
+            <p>
+                The analysis is produced by the <strong>AI Build Analyzer</strong> task inside the pipeline.
+                Add this step at the end of the job so it runs only on failure:
+            </p>
+            <pre>- task: AIBuildAnalyzer@2
+  displayName: AI Build Analyzer
+  condition: failed()</pre>
+            <p class="muted">
+                After adding the task, the analysis will appear here automatically from the next failed run onward.
+            </p>
+        </section>
+
+        <section id="results" class="hidden">
+            <div class="results-header">
+                <h2>Analysis result</h2>
+                <div class="source-meta">
+                    <span class="confidence-track" title="Confidence">
+                        <span id="confidence-fill" class="confidence-fill"></span>
+                    </span>
+                    <span id="result-source" class="source-badge"></span>
+                </div>
+            </div>
+            <div class="results-body">
+                <div class="result-block highlight area-summary">
+                    <h3>📋 Summary</h3>
+                    <p id="result-summary"></p>
+                </div>
+                <div class="result-block area-cause">
+                    <h3>🎯 Likely root cause</h3>
+                    <p id="result-root-cause"></p>
+                </div>
+                <div class="result-block area-fixes">
+                    <h3>🛠️ Suggested fixes</h3>
+                    <ul id="result-fixes"></ul>
+                </div>
+                <div class="result-block area-errors">
+                    <h3>❗ Key errors</h3>
+                    <ul id="result-errors"></ul>
+                </div>
+                <details class="area-raw">
+                    <summary>Raw details</summary>
+                    <pre id="result-raw"></pre>
+                </details>
+            </div>
+        </section>
+
+        <section id="error" class="status status-error hidden">
+            <h2>Error</h2>
+            <p id="error-message"></p>
+        </section>
+    </main>
+    <script type="module" src="ai-tab.js"></script>
+</body>
+</html>

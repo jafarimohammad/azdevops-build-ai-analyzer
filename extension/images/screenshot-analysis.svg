@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="1280" height="600" fill="#1b1b1b"/>
+
+  <text x="40" y="34" font-size="14" fill="#9a9a9a">Summary</text>
+  <text x="128" y="34" font-size="14" font-weight="600" fill="#4ca6ff">AI Analyzer</text>
+  <rect x="128" y="44" width="92" height="3" rx="1.5" fill="#4ca6ff"/>
+  <rect x="0" y="56" width="1280" height="1" fill="#2a2a2a"/>
+
+  <svg x="40" y="74" width="36" height="36" viewBox="0 0 128 128">
+    <rect width="128" height="128" rx="28" fill="#0078D4"/>
+    <g fill="none" stroke="#ffffff" stroke-linecap="round">
+      <circle cx="54" cy="54" r="27" stroke-width="9"/>
+      <line x1="74" y1="74" x2="96" y2="96" stroke-width="12"/>
+    </g>
+    <path d="M54 37 L59.5 48.5 L71 54 L59.5 59.5 L54 71 L48.5 59.5 L37 54 L48.5 48.5 Z" fill="#ffffff"/>
+  </svg>
+  <text x="88" y="92" font-size="22" font-weight="600" fill="#ededed">AI Build Analyzer</text>
+  <text x="88" y="114" font-size="13" fill="#9a9a9a">Automatic analysis of Azure Pipeline failures with your own LLM</text>
+  <rect x="1120" y="74" width="120" height="38" rx="6" fill="#0078D4"/>
+  <text x="1180" y="98" font-size="13" font-weight="600" fill="#ffffff" text-anchor="middle">Reload</text>
+
+  <text x="40" y="168" font-size="17" font-weight="600" fill="#ededed">Analysis result</text>
+  <rect x="1008" y="162" width="70" height="6" rx="3" fill="#333333"/>
+  <rect x="1008" y="162" width="64" height="6" rx="3" fill="#4ca6ff"/>
+  <rect x="1090" y="151" width="150" height="26" rx="13" fill="#1e3a23"/>
+  <text x="1165" y="168" font-size="12" font-weight="600" fill="#5dba5d" text-anchor="middle">LLM analysis · 92%</text>
+
+  <rect x="40" y="192" width="1200" height="80" rx="10" fill="#2d2d2d" stroke="#3a3a3a"/>
+  <rect x="40" y="192" width="3" height="80" fill="#4ca6ff"/>
+  <text x="60" y="216" font-size="11" font-weight="600" fill="#9a9a9a" letter-spacing="0.6">SUMMARY</text>
+  <text x="60" y="240" font-size="16" fill="#ededed">The npm ci step failed because two packages require conflicting versions of React, so the</text>
+  <text x="60" y="261" font-size="16" fill="#ededed">dependency tree could not be resolved.</text>
+
+  <rect x="40" y="288" width="680" height="92" rx="10" fill="#2d2d2d" stroke="#3a3a3a"/>
+  <text x="60" y="312" font-size="11" font-weight="600" fill="#9a9a9a" letter-spacing="0.6">LIKELY ROOT CAUSE</text>
+  <text x="60" y="336" font-size="15" fill="#ededed">Conflicting peer dependency: react-dom needs React 18 while</text>
+  <text x="60" y="357" font-size="15" fill="#ededed">legacy-plugin@2.1.0 still requires React 17.</text>
+
+  <rect x="40" y="392" width="680" height="150" rx="10" fill="#2d2d2d" stroke="#3a3a3a"/>
+  <text x="60" y="416" font-size="11" font-weight="600" fill="#9a9a9a" letter-spacing="0.6">SUGGESTED FIXES</text>
+  <g fill="#4ca6ff">
+    <path d="M64 438 L66.5 443 L71.5 445.5 L66.5 448 L64 453 L61.5 448 L56.5 445.5 L61.5 443 Z"/>
+    <path d="M64 466 L66.5 471 L71.5 473.5 L66.5 476 L64 481 L61.5 476 L56.5 473.5 L61.5 471 Z"/>
+    <path d="M64 494 L66.5 499 L71.5 501.5 L66.5 504 L64 509 L61.5 504 L56.5 501.5 L61.5 499 Z"/>
+  </g>
+  <text x="82" y="450" font-size="14" fill="#ededed">Upgrade legacy-plugin to a React 18-compatible release.</text>
+  <text x="82" y="478" font-size="14" fill="#ededed">Reinstall resolving the peer dependency instead of legacy mode.</text>
+  <text x="82" y="506" font-size="14" fill="#ededed">Pin react and react-dom to the same major version in package.json.</text>
+
+  <rect x="744" y="288" width="496" height="254" rx="10" fill="#2d2d2d" stroke="#3a3a3a"/>
+  <text x="764" y="312" font-size="11" font-weight="600" fill="#9a9a9a" letter-spacing="0.6">KEY ERRORS</text>
+
+  <rect x="764" y="326" width="456" height="34" rx="4" fill="#232323"/>
+  <rect x="764" y="326" width="3" height="34" fill="#f1707b"/>
+  <text x="778" y="347" font-size="12.5" font-family="Consolas, monospace" fill="#d6d6d6">npm error code ERESOLVE</text>
+
+  <rect x="764" y="370" width="456" height="52" rx="4" fill="#232323"/>
+  <rect x="764" y="370" width="3" height="52" fill="#f1707b"/>
+  <text x="778" y="390" font-size="12.5" font-family="Consolas, monospace" fill="#d6d6d6">npm error ERESOLVE unable to resolve</text>
+  <text x="778" y="409" font-size="12.5" font-family="Consolas, monospace" fill="#d6d6d6">dependency tree</text>
+
+  <rect x="764" y="432" width="456" height="52" rx="4" fill="#232323"/>
+  <rect x="764" y="432" width="3" height="52" fill="#f1707b"/>
+  <text x="778" y="452" font-size="12.5" font-family="Consolas, monospace" fill="#d6d6d6">npm error peer react@^17.0.0 from</text>
+  <text x="778" y="471" font-size="12.5" font-family="Consolas, monospace" fill="#d6d6d6">legacy-plugin@2.1.0</text>
+</svg>

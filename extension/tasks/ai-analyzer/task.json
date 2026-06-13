@@ -1,0 +1,70 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
+  "id": "8f3b9c2e-5a41-4d6f-9b2a-7c1e4d8a6f30",
+  "name": "AIBuildAnalyzer",
+  "friendlyName": "AI Build Analyzer",
+  "description": "Analyzes a failed pipeline run with an OpenAI-compatible LLM and attaches the result to the build, where the AI Analyzer tab displays it.",
+  "helpMarkDown": "Add this task as the last step of the job with `condition: failed()`. Point `llmUrl`/`llmModel` at your own LLM. The result appears in the AI Analyzer tab on the build results page.",
+  "category": "Utility",
+  "author": "AI Build Analyzer",
+  "version": {
+    "Major": 2,
+    "Minor": 5,
+    "Patch": 0
+  },
+  "instanceNameFormat": "AI Build Analyzer",
+  "execution": {
+    "Node10": { "target": "index.js" },
+    "Node16": { "target": "index.js" },
+    "Node20_1": { "target": "index.js" }
+  },
+  "inputs": [
+    {
+      "name": "llmUrl",
+      "type": "string",
+      "label": "LLM base URL (OpenAI-compatible, ending in /v1)",
+      "defaultValue": "http://localhost:11434/v1",
+      "required": true,
+      "helpMarkDown": "Base URL of any OpenAI-compatible chat-completions API (Ollama, LM Studio, vLLM, llama.cpp, OpenAI, etc.). The build agent must be able to reach this address. Example: http://localhost:11434/v1 for Ollama."
+    },
+    {
+      "name": "llmModel",
+      "type": "string",
+      "label": "Model name",
+      "defaultValue": "llama3.1",
+      "required": true,
+      "helpMarkDown": "The model identifier as your server expects it, e.g. llama3.1, qwen2.5-coder, gpt-oss:20b, gpt-4o-mini."
+    },
+    {
+      "name": "llmApiKey",
+      "type": "string",
+      "label": "API key (optional)",
+      "defaultValue": "",
+      "required": false,
+      "helpMarkDown": "Sent as a Bearer token if provided. Pass a secret pipeline variable, e.g. $(LLM_API_KEY)."
+    },
+    {
+      "name": "insecureTls",
+      "type": "boolean",
+      "label": "Allow self-signed TLS certificates (curl -k)",
+      "defaultValue": false,
+      "required": false,
+      "helpMarkDown": "Enable only if your LLM uses an HTTPS endpoint with a self-signed/internal certificate."
+    },
+    {
+      "name": "timeoutMs",
+      "type": "string",
+      "label": "LLM request timeout (ms)",
+      "defaultValue": "60000",
+      "required": false,
+      "helpMarkDown": "Increase for large local models that respond slowly."
+    },
+    {
+      "name": "maxLogs",
+      "type": "string",
+      "label": "Max log files to read",
+      "defaultValue": "15",
+      "required": false
+    }
+  ]
+}

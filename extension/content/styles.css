@@ -1,0 +1,366 @@
+/* Theme-aware styles: the Azure DevOps SDK injects the host theme as CSS
+   variables (--background-color, --text-primary-color, ...). We alias them with
+   light-theme fallbacks so the tab looks native in both light and dark mode. */
+
+:root {
+    --bg: var(--background-color, #ffffff);
+    --text: var(--text-primary-color, rgba(0, 0, 0, 0.9));
+    --text-secondary: var(--text-secondary-color, rgba(0, 0, 0, 0.55));
+    --accent: var(--communication-foreground, #0078d4);
+    --accent-bg: var(--communication-background, #0078d4);
+    --card-bg: var(--callout-background-color, #ffffff);
+    --border: var(--border-subtle-color, rgba(128, 128, 128, 0.22));
+    --error-fg: var(--status-error-foreground, #cd4a45);
+    --success-fg: var(--status-success-foreground, #107c10);
+    --warning-fg: var(--status-warning-foreground, #b27c00);
+    --code-bg: rgba(128, 128, 128, 0.10);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
+}
+
+#ai-tab-container {
+    width: 100%;
+    min-height: 100vh;
+    padding: 24px 32px 40px;
+}
+
+h1, h2, h3, p {
+    margin: 0;
+}
+
+h1 {
+    font-size: 22px;
+    font-weight: 650;
+    color: var(--text);
+}
+
+h1 .accent {
+    color: var(--accent);
+}
+
+h2 {
+    font-size: 17px;
+    font-weight: 650;
+}
+
+h3 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--text-secondary);
+    letter-spacing: 0.2px;
+    text-transform: none;
+}
+
+p, li, summary {
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.muted {
+    color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------- header --- */
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 18px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.header p {
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+button {
+    min-width: 120px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--accent-bg);
+    color: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 18px;
+    transition: filter 0.12s ease;
+}
+
+button:hover {
+    filter: brightness(1.12);
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: progress;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ------------------------------------------------------------- status --- */
+
+.status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    padding: 20px;
+    margin-bottom: 14px;
+}
+
+.status-info {
+    border-inline-start: 3px solid var(--accent);
+}
+
+.status-error {
+    border-inline-start: 3px solid var(--error-fg);
+}
+
+.status-error h2,
+.status-error p {
+    color: var(--error-fg);
+}
+
+/* loading spinner */
+.loading-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    border: 2.5px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------ results --- */
+
+.results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.source-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.source-badge {
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.source-llm {
+    background: rgba(16, 124, 16, 0.14);
+    color: var(--success-fg);
+}
+
+.source-heuristic {
+    background: rgba(178, 124, 0, 0.14);
+    color: var(--warning-fg);
+}
+
+.confidence-track {
+    width: 72px;
+    height: 5px;
+    border-radius: 3px;
+    background: var(--code-bg);
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+    transition: width 0.4s ease;
+}
+
+/* Dashboard grid: fills the full width and avoids the empty-side problem.
+   Wide screens get a two-column layout; narrow screens stack in source order. */
+.results-body {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 1000px) {
+    .results-body {
+        grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+        grid-template-areas:
+            "summary summary"
+            "cause   errors"
+            "fixes   errors"
+            "raw     raw";
+        align-items: start;
+    }
+    .area-summary { grid-area: summary; }
+    .area-cause   { grid-area: cause; }
+    .area-fixes   { grid-area: fixes; }
+    .area-errors  { grid-area: errors; }
+    .area-raw     { grid-area: raw; }
+}
+
+.result-block {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    padding: 16px 18px;
+}
+
+.result-block.highlight {
+    border-inline-start: 3px solid var(--accent);
+}
+
+#result-summary {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.6;
+}
+
+/* error lines: monospace, LTR, red marker */
+#result-errors {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#result-errors li {
+    direction: ltr;
+    text-align: left;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    background: var(--code-bg);
+    border-left: 3px solid var(--error-fg);
+    border-radius: 4px;
+    padding: 7px 10px;
+    margin-bottom: 7px;
+    word-break: break-word;
+}
+
+#result-errors li.muted {
+    font-family: inherit;
+    border-left: none;
+    background: none;
+    padding: 0;
+}
+
+/* suggested fixes: arrow bullets */
+#result-fixes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#result-fixes li {
+    position: relative;
+    padding-inline-start: 24px;
+    margin-bottom: 9px;
+}
+
+#result-fixes li::before {
+    content: "✦";
+    position: absolute;
+    inset-inline-start: 2px;
+    top: 1px;
+    color: var(--accent);
+    font-size: 13px;
+}
+
+#result-fixes li.muted::before {
+    content: "";
+}
+
+details {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card-bg);
+    padding: 14px 18px;
+    margin-bottom: 12px;
+}
+
+summary {
+    cursor: pointer;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 13px;
+}
+
+pre {
+    max-height: 360px;
+    overflow: auto;
+    direction: ltr;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--code-bg);
+    border-radius: 6px;
+    margin: 12px 0 0;
+    padding: 12px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+/* -------------------------------------------------------- empty state --- */
+
+#empty pre {
+    margin-top: 4px;
+}
+
+#empty h2 {
+    color: var(--text);
+}
+
+/* --------------------------------------------------------- responsive --- */
+
+@media (max-width: 720px) {
+    .header,
+    .results-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    button {
+        width: 100%;
+    }
+}

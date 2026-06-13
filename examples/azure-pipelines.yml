@@ -1,0 +1,27 @@
+# Example: add the AI Build Analyzer to the end of your job.
+# It runs only when the job has failed, analyzes the failed-task logs with your
+# LLM, and attaches the result to the build. Open the "AI Analyzer" tab on the
+# build results page to see it.
+
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - script: |
+      echo "Building..."
+      exit 1            # force a failure to demo the analyzer
+    displayName: Build (fails on purpose)
+
+  # --- AI Build Analyzer -----------------------------------------------------
+  - task: AIBuildAnalyzer@2
+    displayName: AI Build Analyzer
+    condition: failed()           # only analyze failed runs
+    inputs:
+      llmUrl: http://localhost:11434/v1   # your OpenAI-compatible endpoint
+      llmModel: llama3.1
+      # llmApiKey: $(LLM_API_KEY)         # secret variable, only if required
+      # insecureTls: true                 # only for self-signed HTTPS LLMs
+      # timeoutMs: '120000'               # raise for slow local models

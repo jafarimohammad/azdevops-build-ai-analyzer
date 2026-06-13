@@ -1,0 +1,100 @@
+{
+  "manifestVersion": 1,
+  "id": "azdevops-build-ai-analyzer",
+  "name": "Azure DevOps Build AI Analyzer",
+  "publisher": "ai-build-analyzer",
+  "version": "2.7.0",
+  "public": true,
+  "description": "Analyzes failed pipeline runs with your own OpenAI-compatible LLM (local or hosted): a pipeline task produces the analysis and a build results tab displays it.",
+  "icons": {
+    "default": "images/logo.png"
+  },
+  "categories": [
+    "Azure Pipelines"
+  ],
+  "tags": [
+    "Azure Pipelines",
+    "AI",
+    "LLM",
+    "Ollama",
+    "Build",
+    "CI/CD",
+    "DevOps"
+  ],
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services",
+      "versionSpec": ">= 1.0.0"
+    }
+  ],
+  "content": {
+    "details": {
+      "path": "README.md"
+    }
+  },
+  "links": {
+    "repository": {
+      "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer"
+    },
+    "support": {
+      "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer/issues"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer"
+  },
+  "contributions": [
+    {
+      "id": "aiTab",
+      "type": "ms.vss-build-web.build-results-tab",
+      "targets": [
+        "ms.vss-build-web.build-results-view"
+      ],
+      "properties": {
+        "name": "AI Analyzer",
+        "uri": "content/ai-tab.html",
+        "order": 1
+      }
+    },
+    {
+      "id": "ai-analyzer-task",
+      "type": "ms.vss-distributed-task.task",
+      "targets": [
+        "ms.vss-distributed-task.tasks"
+      ],
+      "properties": {
+        "name": "tasks/ai-analyzer"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "content/ai-tab.html",
+      "addressable": true,
+      "contentType": "text/html"
+    },
+    {
+      "path": "content/ai-tab.js",
+      "addressable": true,
+      "contentType": "application/javascript"
+    },
+    {
+      "path": "content/styles.css",
+      "addressable": true,
+      "contentType": "text/css"
+    },
+    {
+      "path": "content/lib/SDK.min.js",
+      "addressable": true,
+      "contentType": "application/javascript"
+    },
+    {
+      "path": "tasks/ai-analyzer"
+    }
+  ],
+  "scopes": [
+    "vso.build",
+    "vso.project"
+  ]
+}
