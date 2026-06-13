@@ -207,6 +207,8 @@ button:disabled {
 }
 
 .confidence-fill {
+    display: block;
+    width: 0;
     height: 100%;
     border-radius: 3px;
     background: var(--accent);

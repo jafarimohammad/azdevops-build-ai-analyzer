@@ -3,7 +3,7 @@
   "id": "azdevops-build-ai-analyzer",
   "name": "Azure DevOps Build AI Analyzer",
   "publisher": "ai-build-analyzer",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "public": true,
   "description": "Analyzes failed pipeline runs with your own OpenAI-compatible LLM (local or hosted): a pipeline task produces the analysis and a build results tab displays it.",
   "icons": {
