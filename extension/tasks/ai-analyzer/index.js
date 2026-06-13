@@ -95,6 +95,21 @@ function denoise(text) {
   }).join('\n');
 }
 
+// Redact + drop noise, then prefix each surviving line with its ORIGINAL 1-based
+// line number in that task's log, so the line numbers match what the Azure DevOps
+// log viewer shows. Lets both the heuristics and the LLM cite "where" an error is.
+function cleanAndNumber(rawText) {
+  var clean = sanitize(rawText, 1e12); // redact + strip timestamps, no truncation (line count preserved)
+  var lines = clean.split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length; i++) {
+    var s = lines[i].replace(/^##\[(error|warning|debug|section)\]/, '').replace(/^\s+/, '');
+    if (s.length && NOISE_LINE.test(s)) continue;
+    out.push((i + 1) + '| ' + lines[i]);
+  }
+  return out.join('\n');
+}
+
 function extractImportant(logs, contextLines) {
   if (!logs) return '';
   contextLines = contextLines || 6;
@@ -230,11 +245,12 @@ function analyzeWithLlm(important, meta, cfg) {
     'JSON schema: {"summary": string, "rootCause": string, "errors": string[], "suggestedFixes": string[], "confidence": number}',
     '- summary: one or two sentences a developer can act on.',
     '- rootCause: the single most likely cause.',
-    '- errors: the key error lines, quoted from the log.',
+    '- errors: the key error lines, quoted verbatim from the log INCLUDING their leading "<number>| " line-number prefix, so the developer can locate them.',
     '- suggestedFixes: concrete steps, most likely fix first.',
     '- confidence: 0..1.',
     '',
     'Rules:',
+    '- Each log line is prefixed with its line number as "<n>| " and grouped under a "===== <step name> =====" header. Keep those line numbers when you quote error lines.',
     '- Base your answer ONLY on the actual error text. Identify the FIRST real error; later lines are often just its fallout.',
     '- IGNORE noise: stack traces, Go/grpc/buildkit internal frames, file paths, and any credentials, tokens or build-args in command lines. They are not the cause.',
     '- Be precise about the failure type. For Docker, distinguish a build-time base-image problem (a FROM image that is "not found" / cannot be pulled — usually a wrong registry/name/tag) from a push or login/authentication failure. Do not assume authentication unless the log actually shows an auth/denied/401/403 error.',
@@ -293,7 +309,7 @@ function azdo(urlStr, token, insecure) {
 
 function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
   var failedTasks = [];
-  var logIds = [];
+  var failed = []; // { logId, name }
   var v = '?api-version=' + apiVersion;
   return azdo(baseUrl + '/timeline' + v, token, insecure)
     .then(function (resp) {
@@ -307,31 +323,35 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
           // unrelated steps' output.
           if (r.type !== 'Task') continue;
           if (r.name) failedTasks.push(r.name);
-          if (r.log && r.log.id !== undefined && r.log.id !== null) logIds.push(r.log.id);
+          if (r.log && r.log.id !== undefined && r.log.id !== null) {
+            failed.push({ logId: r.log.id, name: r.name || ('log ' + r.log.id) });
+          }
         }
       } else {
         console.log('##[warning]Could not read build timeline (HTTP ' + resp.status + '): ' + String(resp.body).slice(0, 200));
       }
-      if (logIds.length > 0) return null;
+      if (failed.length > 0) return null;
       return azdo(baseUrl + '/logs' + v, token, insecure).then(function (listResp) {
         if (listResp.status !== 200) {
           throw new Error('Could not list build logs (HTTP ' + listResp.status + ' at api-version ' + apiVersion + '): ' + String(listResp.body).slice(0, 200));
         }
         var value = JSON.parse(listResp.body).value || [];
-        logIds = value.map(function (l) { return l.id; });
+        failed = value.map(function (l) { return { logId: l.id, name: 'log ' + l.id }; });
         return null;
       });
     })
     .then(function () {
-      var unique = logIds.filter(function (id, idx) { return logIds.indexOf(id) === idx; }).slice(0, maxLogs);
+      var seen = {};
+      var unique = failed.filter(function (f) { return seen[f.logId] ? false : (seen[f.logId] = true); }).slice(0, maxLogs);
       var combined = '';
       var chain = Promise.resolve();
-      unique.forEach(function (id) {
+      unique.forEach(function (f) {
         chain = chain.then(function () {
-          return azdo(baseUrl + '/logs/' + id + v, token, insecure).then(function (r) {
-            if (r.status === 200) combined += '\n\n===== LOG ' + id + ' =====\n' + r.body;
+          return azdo(baseUrl + '/logs/' + f.logId + v, token, insecure).then(function (r) {
+            // Numbered so the line numbers match the Azure DevOps log viewer for this step.
+            if (r.status === 200) combined += '\n\n===== ' + f.name + ' (log ' + f.logId + ') =====\n' + cleanAndNumber(r.body);
           }).catch(function (e) {
-            console.log('##[warning]Log ' + id + ' fetch failed: ' + e.message);
+            console.log('##[warning]Log ' + f.logId + ' fetch failed: ' + e.message);
           });
         });
       });
@@ -390,7 +410,10 @@ function main() {
   return fetchFailureLogs(baseUrl, token, cfg.insecure, maxLogs, apiVersion)
     .then(function (logs) {
       meta.failedTasks = logs.failedTasks;
-      var cleaned = denoise(sanitize(logs.rawLogs, 120000));
+      // logs.rawLogs is already redacted, denoised and line-numbered per step.
+      var cleaned = logs.rawLogs.length > 120000
+        ? logs.rawLogs.slice(0, 60000) + '\n...[truncated]...\n' + logs.rawLogs.slice(-60000)
+        : logs.rawLogs;
       var important = extractImportant(cleaned) || cleaned.slice(-12000);
       console.log('Analyzing with LLM at ' + cfg.url + ' (model ' + cfg.model + ')...');
       return analyzeWithLlm(important, meta, cfg).catch(function (e) {
@@ -413,4 +436,4 @@ if (require.main === module) {
 }
 
 // Exported for unit tests (see test/).
-module.exports = { sanitize: sanitize, denoise: denoise, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
+module.exports = { sanitize: sanitize, denoise: denoise, cleanAndNumber: cleanAndNumber, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
