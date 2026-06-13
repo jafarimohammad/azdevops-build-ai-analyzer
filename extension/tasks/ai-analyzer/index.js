@@ -122,9 +122,12 @@ var RULES = [
   { test: /Cannot find module|Module not found|ERR_MODULE_NOT_FOUND/i,
     rootCause: 'A module is missing at build time.',
     fix: 'Verify the dependency is in package.json, the lockfile is committed, and `npm ci`/restore runs before the build step.' },
-  { test: /failed to solve.*dockerfile|failed to compute cache key|no match for platform/i,
-    rootCause: 'The Docker image build failed.',
-    fix: 'Check the Dockerfile: verify the base image/tag exists, the platform matches, and files referenced by COPY/ADD are present in the build context.' },
+  { test: /(pull access denied|manifest unknown|manifest for .+ not found|not found: manifest|repository .+ not found|denied: requested access)/i,
+    rootCause: 'A Docker image could not be pulled — the image name/tag is wrong, missing from the registry, or requires authentication.',
+    fix: 'Check the FROM lines in the Dockerfile: verify the registry host, image name and tag exist and are reachable, and that the agent is logged in to that registry.' },
+  { test: /failed to solve|failed to compute cache key|no match for platform|error: failed to (fetch|export)/i,
+    rootCause: 'The Docker image build failed (buildkit could not resolve a stage, base image, or build context).',
+    fix: 'Read the "failed to solve" line: confirm each FROM base image exists in its registry, the referenced COPY/ADD paths exist, and the platform matches. A "<image>: not found" usually means a wrong registry/name/tag.' },
   { test: /error\s+(TS\d+|CS\d+)\b/i,
     rootCause: 'A compiler error (TypeScript/C#) stopped the build.',
     fix: 'Open the reported file:line, fix the type/compile error, and reproduce locally with the same SDK version used in the pipeline.' },
@@ -137,13 +140,13 @@ var RULES = [
   { test: /\b\d+ (failing|failed)\b|Tests run:.*Failures:|FAILED tests/i,
     rootCause: 'One or more tests failed.',
     fix: 'Open the failing test name above, reproduce locally, and fix the assertion or the regression that broke it.' },
-  { test: /timed out|timeout|ETIMEDOUT|context deadline exceeded/i,
-    rootCause: 'A step timed out (network or long-running command).',
-    fix: 'Increase the step timeout, add retries for flaky network calls, or check that the dependency/endpoint is reachable from the agent.' },
-  { test: /denied|unauthorized|403|401|authentication failed|invalid credentials/i,
+  { test: /\b(unauthorized|forbidden|authentication failed|invalid credentials)\b|HTTP (401|403)|status code 401|status code 403/i,
     rootCause: 'An authentication/authorization failure (registry, feed, or service connection).',
     fix: 'Check the service connection, PAT, or feed credentials and confirm they have not expired and have the required scopes.' },
-  { test: /Bash exited with code|PowerShell exited with code|script failed with exit code|##\[error\]/i,
+  { test: /\btimed out\b|ETIMEDOUT|ESOCKETTIMEDOUT|context deadline exceeded|operation timed out|request timed out/i,
+    rootCause: 'A step timed out (network or long-running command).',
+    fix: 'Increase the step timeout, add retries for flaky network calls, or check that the dependency/endpoint is reachable from the agent.' },
+  { test: /Bash exited with code|PowerShell exited with code|script failed with exit code|failed with exit code|##\[error\]/i,
     rootCause: 'A pipeline task exited with a non-zero code.',
     fix: 'Read the first error printed above the failed task and validate the command arguments and environment variables that step uses.' }
 ];
@@ -277,7 +280,11 @@ function fetchFailureLogs(baseUrl, token, insecure, maxLogs, apiVersion) {
         for (var i = 0; i < records.length; i++) {
           var r = records[i];
           if (String(r.result).toLowerCase() !== 'failed') continue;
-          if (r.type === 'Task' && r.name) failedTasks.push(r.name);
+          // Only the actual failed steps (Tasks). Job/Phase/Stage records carry an
+          // aggregate log of the whole job, which dilutes the signal and pulls in
+          // unrelated steps' output.
+          if (r.type !== 'Task') continue;
+          if (r.name) failedTasks.push(r.name);
           if (r.log && r.log.id !== undefined && r.log.id !== null) logIds.push(r.log.id);
         }
       } else {
@@ -376,7 +383,12 @@ function main() {
     });
 }
 
-main().catch(function (e) {
-  // Never fail the build because of the analyzer itself.
-  console.log('##[warning]AI Build Analyzer failed: ' + (e && e.message ? e.message : e));
-});
+if (require.main === module) {
+  main().catch(function (e) {
+    // Never fail the build because of the analyzer itself.
+    console.log('##[warning]AI Build Analyzer failed: ' + (e && e.message ? e.message : e));
+  });
+}
+
+// Exported for unit tests (see test/).
+module.exports = { sanitize: sanitize, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
