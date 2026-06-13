@@ -430,16 +430,18 @@ function main() {
   return fetchFailureLogs(baseUrl, token, cfg.insecure, maxLogs, apiVersion)
     .then(function (logs) {
       meta.failedTasks = logs.failedTasks;
-      // logs.rawLogs is already redacted, denoised and line-numbered per step.
-      var cleaned = logs.rawLogs.length > 120000
-        ? logs.rawLogs.slice(0, 60000) + '\n...[truncated]...\n' + logs.rawLogs.slice(-60000)
-        : logs.rawLogs;
-      var important = extractImportant(cleaned) || cleaned.slice(-12000);
+      // Extract the error-bearing sections from the FULL combined log FIRST, so an
+      // error in the middle of a long (or whole-job fallback) dump is never
+      // truncated away. Only the already error-focused result is then capped.
+      var important = extractImportant(logs.rawLogs) || logs.rawLogs.slice(-12000);
+      if (important.length > 60000) {
+        important = important.slice(0, 30000) + '\n...[truncated]...\n' + important.slice(-30000);
+      }
 
       // Deterministic baseline, always computed: it grounds the LLM and is the
       // source of truth for the quoted error lines.
       var heur = runHeuristics(important);
-      console.log('Failed task(s): ' + (meta.failedTasks.join(', ') || 'n/a') +
+      console.log('Failed task(s): ' + (meta.failedTasks.join(', ') || 'n/a (used full log list)') +
         ' | extracted ' + heur.errors.length + ' key error line(s)' +
         (heur.rootCause ? ' | rule pre-check: ' + heur.rootCause : '') + '.');
 
