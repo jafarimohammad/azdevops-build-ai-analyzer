@@ -73,10 +73,26 @@ function sanitize(input, maxLen) {
     // (saves LLM tokens and keeps the reported error lines readable)
     .replace(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z?\s?/gm, '')
     .replace(/\x1b\[[0-9;]*m/g, '')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // redact secrets so they never reach the LLM or the attachment
+    .replace(/((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key)["']?\s*[=:]\s*)("?)[^\s"'&]+/gi, '$1$2***')
+    .replace(/(Bearer\s+)[A-Za-z0-9._\-]+/gi, '$1***');
   if (cleaned.length <= maxLen) return cleaned;
   var half = Math.floor(maxLen / 2);
   return cleaned.slice(0, half) + '\n\n...[truncated]...\n\n' + cleaned.slice(-half);
+}
+
+// Drop framework/stack-trace noise (Go runtime frames, grpc/buildkit internals,
+// buildx command echoes) so the real error lines aren't buried. Keeps the
+// ##[error]/##[warning] prefix into account when matching.
+var NOISE_LINE = /^(at\s|github\.com\/|google\.golang\.org\/|go\.opentelemetry\.io\/|golang\.org\/x\/|\/go\/src\/|\/usr\/local\/go\/|runtime\.goexit|\d+\s+\/usr\/local\/bin\/dockerd|\d+ v\d+\.\d|docker-buildx buildx build)/;
+
+function denoise(text) {
+  if (!text) return '';
+  return text.split('\n').filter(function (l) {
+    var s = l.replace(/^##\[(error|warning|debug|section)\]/, '').replace(/^\s+/, '');
+    return s.length === 0 ? true : !NOISE_LINE.test(s);
+  }).join('\n');
 }
 
 function extractImportant(logs, contextLines) {
@@ -217,6 +233,12 @@ function analyzeWithLlm(important, meta, cfg) {
     '- errors: the key error lines, quoted from the log.',
     '- suggestedFixes: concrete steps, most likely fix first.',
     '- confidence: 0..1.',
+    '',
+    'Rules:',
+    '- Base your answer ONLY on the actual error text. Identify the FIRST real error; later lines are often just its fallout.',
+    '- IGNORE noise: stack traces, Go/grpc/buildkit internal frames, file paths, and any credentials, tokens or build-args in command lines. They are not the cause.',
+    '- Be precise about the failure type. For Docker, distinguish a build-time base-image problem (a FROM image that is "not found" / cannot be pulled — usually a wrong registry/name/tag) from a push or login/authentication failure. Do not assume authentication unless the log actually shows an auth/denied/401/403 error.',
+    '- If unsure, say so and lower the confidence.',
     '',
     'Build: ' + (meta.definition || 'unknown') + ' #' + (meta.buildNumber || '?') + ' on ' + (meta.sourceBranch || 'unknown branch') + '.',
     meta.failedTasks && meta.failedTasks.length ? 'Failed tasks: ' + meta.failedTasks.join(', ') + '.' : '',
@@ -368,7 +390,7 @@ function main() {
   return fetchFailureLogs(baseUrl, token, cfg.insecure, maxLogs, apiVersion)
     .then(function (logs) {
       meta.failedTasks = logs.failedTasks;
-      var cleaned = sanitize(logs.rawLogs, 120000);
+      var cleaned = denoise(sanitize(logs.rawLogs, 120000));
       var important = extractImportant(cleaned) || cleaned.slice(-12000);
       console.log('Analyzing with LLM at ' + cfg.url + ' (model ' + cfg.model + ')...');
       return analyzeWithLlm(important, meta, cfg).catch(function (e) {
@@ -391,4 +413,4 @@ if (require.main === module) {
 }
 
 // Exported for unit tests (see test/).
-module.exports = { sanitize: sanitize, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
+module.exports = { sanitize: sanitize, denoise: denoise, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics };
