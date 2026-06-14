@@ -1,8 +1,8 @@
 # Azure DevOps Build AI Analyzer
 
-[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/ai-build-analyzer.azure-pipelines?label=Marketplace&color=0078d4&logo=azure-devops)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/ai-build-analyzer.azure-pipelines?label=Installs&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/ai-build-analyzer.azure-pipelines?label=Rating)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines&ssr=false#review-details)
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/ai-build-analyzer.ai-build-analyzer?label=Marketplace&color=0078d4&logo=azure-devops)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.ai-build-analyzer)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/ai-build-analyzer.ai-build-analyzer?label=Installs&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.ai-build-analyzer)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/ai-build-analyzer.ai-build-analyzer?label=Rating)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.ai-build-analyzer&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An Azure DevOps extension that automatically explains **why your pipeline failed** using an LLM of your choice — including a **local, self-hosted model** (Ollama, LM Studio, vLLM, llama.cpp) or any OpenAI-compatible API.
