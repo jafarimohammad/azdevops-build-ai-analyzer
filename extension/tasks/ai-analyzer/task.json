@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/Microsoft/azure-pipelines-task-lib/master/tasks.schema.json",
-  "id": "8f3b9c2e-5a41-4d6f-9b2a-7c1e4d8a6f30",
+  "id": "0bf8985d-af99-4882-9601-3d529156832b",
   "name": "AIBuildAnalyzer",
   "friendlyName": "AI Build Analyzer",
   "description": "Analyzes a failed pipeline run with an OpenAI-compatible LLM and attaches the result to the build, where the AI Analyzer tab displays it.",
