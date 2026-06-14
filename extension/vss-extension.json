@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "id": "ai-build-analyzer",
+  "id": "build-failure-analyzer",
   "name": "Azure DevOps Build AI Analyzer",
   "publisher": "ai-build-analyzer",
   "version": "2.15.0",
