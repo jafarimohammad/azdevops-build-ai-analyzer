@@ -8,3 +8,7 @@ node_modules/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# internal-only docs (contain the real internal LLM address — never publish)
+docs-internal/
+pat.txt
