@@ -1,8 +1,8 @@
 # Azure DevOps Build AI Analyzer
 
-[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/ai-build-analyzer.azdevops-build-ai-analyzer?label=Marketplace&color=0078d4&logo=azure-devops)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azdevops-build-ai-analyzer)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/ai-build-analyzer.azdevops-build-ai-analyzer?label=Installs&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azdevops-build-ai-analyzer)
-[![Rating](https://img.shields.io/visual-studio-marketplace/r/ai-build-analyzer.azdevops-build-ai-analyzer?label=Rating)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azdevops-build-ai-analyzer&ssr=false#review-details)
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/ai-build-analyzer.azure-pipelines?label=Marketplace&color=0078d4&logo=azure-devops)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/ai-build-analyzer.azure-pipelines?label=Installs&color=0078d4)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines)
+[![Rating](https://img.shields.io/visual-studio-marketplace/r/ai-build-analyzer.azure-pipelines?label=Rating)](https://marketplace.visualstudio.com/items?itemName=ai-build-analyzer.azure-pipelines&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 An Azure DevOps extension that automatically explains **why your pipeline failed** using an LLM of your choice — including a **local, self-hosted model** (Ollama, LM Studio, vLLM, llama.cpp) or any OpenAI-compatible API.
@@ -50,7 +50,7 @@ Why this design:
 
 ```bash
 npm install            # installs tfx-cli locally
-npm run package        # produces <publisher>.azdevops-build-ai-analyzer-<version>.vsix
+npm run package        # produces <publisher>.<id>-<version>.vsix
 ```
 
 > If you are **forking this for your own org**, first set your own publisher in
@@ -93,7 +93,7 @@ The task talks to any **OpenAI-compatible** `/v1/chat/completions` endpoint. You
 | `llmApiKey` | _(empty)_ | Optional. Sent as `Authorization: Bearer <key>`. Pass a **secret** variable. |
 | `insecureTls` | `false` | Set `true` only for HTTPS endpoints with a self-signed/internal certificate. |
 | `timeoutMs` | `60000` | Request timeout. Raise it for large/slow local models. |
-| `maxLogs` | `15` | Max number of failed-task log files to read. |
+| `maxLogs` | `25` | Max number of failed-task log files to read. |
 
 ### Examples for common backends
 

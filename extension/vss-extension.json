@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "id": "azdevops-build-ai-analyzer",
+  "id": "azure-pipelines",
   "name": "Azure DevOps Build AI Analyzer",
   "publisher": "ai-build-analyzer",
   "version": "2.15.0",
