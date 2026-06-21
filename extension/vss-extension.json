@@ -38,6 +38,12 @@
     },
     "support": {
       "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer/issues"
+    },
+    "license": {
+      "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer/blob/main/LICENSE"
+    },
+    "privacypolicy": {
+      "uri": "https://github.com/jafarimohammad/azdevops-build-ai-analyzer/blob/main/PRIVACY.md"
     }
   },
   "repository": {
