@@ -19,7 +19,7 @@
     "ci-cd"
   ],
   "scripts": {
-    "package": "tfx extension create --manifest-globs extension/vss-extension.json --output-path .",
+    "package": "tfx extension create --root extension --manifest-globs vss-extension.json --output-path .",
     "test": "node test/run-task-test.js"
   },
   "devDependencies": {
