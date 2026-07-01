@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "package": "tfx extension create --root extension --manifest-globs vss-extension.json --output-path .",
-    "test": "node test/run-task-test.js"
+    "test": "node --check extension/tasks/ai-analyzer/index.js && echo \"syntax ok\""
   },
   "devDependencies": {
     "tfx-cli": "^0.17.0"

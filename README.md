@@ -94,6 +94,25 @@ The task talks to any **OpenAI-compatible** `/v1/chat/completions` endpoint. You
 | `insecureTls` | `false` | Set `true` only for HTTPS endpoints with a self-signed/internal certificate. |
 | `timeoutMs` | `60000` | Request timeout. Raise it for large/slow local models. |
 | `maxLogs` | `25` | Max number of failed-task log files to read. |
+| `apiVersion` | `6.0` | Azure DevOps REST API version. Lower it (e.g. `5.0`) if an older on-prem Server returns HTTP 400 reading logs. |
+| `readSource` | `false` | Read a small, targeted set of repo files (the files the error references plus common manifests like Dockerfile/package.json) from the agent's checked-out sources, so the LLM can pinpoint the exact fix. Secrets are redacted; files with secret-looking names and `.env`/keys are skipped. |
+| `maxSourceBytes` | `8000` | Total size budget for the repo files added to the prompt. Keep small for small-context models. |
+
+### Sharper analysis with source context
+
+By default the analyzer only reads the failure **logs**. Turn on `readSource` to let it also read the **repo files the error points at** (from the agent's checked-out sources — no extra network or credentials), so it can name the exact offending dependency/line instead of a generic suggestion:
+
+```yaml
+- task: AIBuildAnalyzer@2
+  condition: failed()
+  inputs:
+    llmUrl: http://localhost:11434/v1
+    llmModel: llama3.1
+    readSource: true          # read Dockerfile / package.json / etc. as extra context
+    maxSourceBytes: '8000'    # keep small for small-context models
+```
+
+Secrets are redacted before anything is sent, huge lockfiles are reduced to their suspect version lines, and the total is capped by `maxSourceBytes`.
 
 ### Examples for common backends
 

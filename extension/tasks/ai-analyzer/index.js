@@ -239,7 +239,84 @@ function toArray(v) {
   return v ? [String(v)] : [];
 }
 
-function analyzeWithLlm(important, meta, cfg, hint) {
+// --- targeted source-file context (opt-in) -------------------------------
+
+var SOURCE_MANIFESTS = ['Dockerfile', 'package.json', 'package-lock.json', 'azure-pipelines.yml', 'azure-pipelines.yaml', 'tsconfig.json', 'requirements.txt', 'pyproject.toml', 'pom.xml', 'build.gradle', 'go.mod'];
+var SOURCE_EXCLUDE = /(^|[\/\\])\.env|\.(pem|key|pfx|p12|crt|cer)$|secret|credential|id_rsa/i;
+var FILE_REF = /[\w.\/\\-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|cs|csproj|sln|py|go|java|kt|rb|php|yml|yaml|xml|toml|gradle|sh|ps1)|[\w.\/\\-]*Dockerfile(?:\.[\w-]+)?/g;
+
+function resolveInRoot(rootAbs, rel) {
+  var abs = path.isAbsolute(rel) ? path.resolve(rel) : path.resolve(rootAbs, rel);
+  if (abs.indexOf(rootAbs) !== 0) {
+    abs = path.resolve(rootAbs, path.basename(rel));
+    if (abs.indexOf(rootAbs) !== 0) return null;
+  }
+  return abs;
+}
+
+// Reduce a huge lockfile to only the entries that could cause a version error.
+function grepSuspiciousVersions(content) {
+  var lines = content.split('\n');
+  var out = [];
+  for (var i = 0; i < lines.length && out.length < 40; i++) {
+    if (/"version"\s*:\s*""/.test(lines[i]) ||
+        /"version"\s*:\s*"[^"]*(?:git|file:|link:|workspace:|https?:|\/\/)/.test(lines[i])) {
+      out.push((i + 1) + '| ' + lines[i].trim());
+    }
+  }
+  return out.join('\n');
+}
+
+// Read a small, targeted set of repo files (referenced in the log + common
+// manifests) from the checked-out sources on the agent, so the LLM can pinpoint
+// the fix. Secrets are redacted; huge lockfiles are reduced to suspect lines.
+function collectSourceContext(logText, maxBytes) {
+  var root = process.env.BUILD_SOURCESDIRECTORY || process.env.BUILD_REPOSITORY_LOCALPATH;
+  if (!root) return '';
+  var rootAbs;
+  try { if (!fs.statSync(root).isDirectory()) return ''; rootAbs = path.resolve(root); }
+  catch (e) { return ''; }
+
+  var rels = {};
+  var re = new RegExp(FILE_REF.source, 'g');
+  var m;
+  while ((m = re.exec(logText)) !== null) rels[m[0]] = true;
+  SOURCE_MANIFESTS.forEach(function (f) { rels[f] = true; });
+
+  var out = '';
+  var used = 0;
+  var count = 0;
+  var seenAbs = {};
+  var candidates = Object.keys(rels);
+  for (var i = 0; i < candidates.length && count < 8 && used < maxBytes; i++) {
+    var rel = candidates[i];
+    if (SOURCE_EXCLUDE.test(rel)) continue;
+    var abs = resolveInRoot(rootAbs, rel);
+    if (!abs || seenAbs[abs]) continue;
+    seenAbs[abs] = true;
+    var st;
+    try { st = fs.statSync(abs); } catch (e) { continue; }
+    if (!st.isFile() || st.size === 0 || st.size > 3000000) continue;
+    var content;
+    try { content = fs.readFileSync(abs, 'utf8'); } catch (e) { continue; }
+    content = sanitize(content, 1000000); // redact secrets
+    if (/(package-lock\.json|yarn\.lock)$/i.test(rel) && content.length > 4000) {
+      content = grepSuspiciousVersions(content);
+      if (!content) continue;
+    } else if (content.length > 3000) {
+      content = content.slice(0, 3000) + '\n...[truncated]...';
+    }
+    var display = path.relative(rootAbs, abs).replace(/\\/g, '/');
+    var block = '===== ' + display + ' =====\n' + content + '\n\n';
+    if (used + block.length > maxBytes) block = block.slice(0, maxBytes - used);
+    out += block;
+    used += block.length;
+    count++;
+  }
+  return out;
+}
+
+function analyzeWithLlm(important, meta, cfg, hint, sourceCtx) {
   var userPrompt = [
     'Analyze this Azure DevOps build failure and respond with JSON only.',
     'JSON schema: {"summary": string, "rootCause": string, "errors": string[], "suggestedFixes": string[], "confidence": number}',
@@ -254,6 +331,7 @@ function analyzeWithLlm(important, meta, cfg, hint) {
     '- Base your answer ONLY on the actual error text. Identify the FIRST real error; later lines are often just its fallout.',
     '- IGNORE noise: stack traces, Go/grpc/buildkit internal frames, file paths, and any credentials, tokens or build-args in command lines. They are not the cause.',
     '- Be precise about the failure type. For Docker, distinguish a build-time base-image problem (a FROM image that is "not found" / cannot be pulled — usually a wrong registry/name/tag) from a push or login/authentication failure. Do not assume authentication unless the log actually shows an auth/denied/401/403 error.',
+    sourceCtx ? '- Repository source files are included below. Use them to pinpoint the EXACT fix (e.g. name the offending dependency and version in package.json, or the wrong line in the Dockerfile), not just a generic suggestion.' : '',
     '- If unsure, say so and lower the confidence.',
     '',
     'Build: ' + (meta.definition || 'unknown') + ' #' + (meta.buildNumber || '?') + ' on ' + (meta.sourceBranch || 'unknown branch') + '.',
@@ -263,7 +341,11 @@ function analyzeWithLlm(important, meta, cfg, hint) {
     'Relevant log sections:',
     '"""',
     important || '(no error sections were extracted)',
-    '"""'
+    '"""',
+    sourceCtx ? '\nRelevant source files from the repository:' : '',
+    sourceCtx ? '"""' : '',
+    sourceCtx || '',
+    sourceCtx ? '"""' : ''
   ].filter(Boolean).join('\n');
 
   var headers = { 'Content-Type': 'application/json' };
@@ -475,8 +557,19 @@ function main() {
         ' | extracted ' + heur.errors.length + ' key error line(s)' +
         (heur.rootCause ? ' | rule pre-check: ' + heur.rootCause : '') + '.');
 
+      // Opt-in: read the referenced repo files from the agent's checked-out sources.
+      var sourceCtx = '';
+      if (String(getInput('readSource', 'false')).toLowerCase() === 'true') {
+        try {
+          sourceCtx = collectSourceContext(logs.rawLogs, parseInt(getInput('maxSourceBytes', '8000'), 10) || 8000);
+        } catch (e) {
+          console.log('##[warning]Reading source files failed: ' + e.message);
+        }
+        if (sourceCtx) console.log('Included repository source context (' + sourceCtx.length + ' chars).');
+      }
+
       console.log('Analyzing with LLM at ' + cfg.url + ' (model ' + cfg.model + ')...');
-      return analyzeWithLlm(important, meta, cfg, heur.rootCause)
+      return analyzeWithLlm(important, meta, cfg, heur.rootCause, sourceCtx)
         .catch(function (e) {
           console.log('##[warning]LLM analysis failed (' + e.message + '); using offline heuristics.');
           return heur;
@@ -498,4 +591,4 @@ if (require.main === module) {
 }
 
 // Exported for unit tests (see test/).
-module.exports = { sanitize: sanitize, denoise: denoise, cleanAndNumber: cleanAndNumber, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics, mergeResult: mergeResult };
+module.exports = { sanitize: sanitize, denoise: denoise, cleanAndNumber: cleanAndNumber, extractImportant: extractImportant, topErrorLines: topErrorLines, runHeuristics: runHeuristics, mergeResult: mergeResult, collectSourceContext: collectSourceContext };

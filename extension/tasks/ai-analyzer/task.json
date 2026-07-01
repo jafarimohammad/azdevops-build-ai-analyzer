@@ -9,7 +9,7 @@
   "author": "AI Build Analyzer",
   "version": {
     "Major": 2,
-    "Minor": 15,
+    "Minor": 16,
     "Patch": 0
   },
   "instanceNameFormat": "AI Build Analyzer",
@@ -73,6 +73,22 @@
       "defaultValue": "6.0",
       "required": false,
       "helpMarkDown": "Match your server: Azure DevOps Services and Server 2022.1+ support 7.1; Server 2022 uses 7.0; Server 2020 uses 6.0; Server 2019 uses 5.0. Lower this if you get HTTP 400 reading logs."
+    },
+    {
+      "name": "readSource",
+      "type": "boolean",
+      "label": "Read referenced repo files as extra context",
+      "defaultValue": false,
+      "required": false,
+      "helpMarkDown": "When enabled, the task reads a small, targeted set of repo files (the files the error references plus common manifests like Dockerfile/package.json) from the agent's checked-out sources and includes them so the LLM can pinpoint the exact fix. Secrets are redacted; the total size is capped by maxSourceBytes."
+    },
+    {
+      "name": "maxSourceBytes",
+      "type": "string",
+      "label": "Max source context (bytes)",
+      "defaultValue": "8000",
+      "required": false,
+      "helpMarkDown": "Total budget for the repo files added to the prompt. Keep it small for small-context models."
     }
   ]
 }
