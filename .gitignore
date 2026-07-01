@@ -12,3 +12,6 @@ Thumbs.db
 # internal-only docs (contain the real internal LLM address — never publish)
 docs-internal/
 pat.txt
+
+# stray screenshots
+extension/images/Screenshot*.png
